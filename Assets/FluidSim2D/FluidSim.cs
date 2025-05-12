@@ -1,4 +1,3 @@
-
 using System.Collections;
 using UnityEngine;
 
@@ -7,24 +6,27 @@ namespace FluidSim2DProject
 
     public class FluidSim : MonoBehaviour
     {
+        [Header("시뮬레이션 설정")]
+        public Color m_fluidColor = new Color(0, 0, 1, 1); // 파란색 열변색 물감
+        public Color m_obstacleColor = new Color(0.8f, 0.8f, 0.8f, 1); // 비커 색상
+        public float m_impulseTemperature = 10.0f; // 초기 온도
+        public float m_impulseDensity = 1.0f; // 초기 밀도
+        public float m_temperatureDissipation = 0.99f; // 온도 소산
+        public float m_velocityDissipation = 0.99f; // 속도 소산
+        public float m_densityDissipation = 0.9999f; // 밀도 소산
+        public float m_ambientTemperature = 0.0f; // 주변 온도
+        public float m_smokeBuoyancy = 1.0f; // 부력
+        public float m_smokeWeight = 0.05f; // 연기 무게
 
-        public Color m_fluidColor = Color.red;
+        [Header("비커 설정")]
+        public float m_beakerWidth = 0.6f; // 비커 너비
+        public float m_beakerHeight = 0.8f; // 비커 높이
+        public float m_beakerWallThickness = 0.02f; // 비커 벽 두께
 
-        public Color m_obstacleColor = Color.white;
-      
         public Material m_guiMat, m_advectMat, m_buoyancyMat, m_divergenceMat, m_jacobiMat, m_impluseMat, m_gradientMat, m_obstaclesMat;
 
         RenderTexture m_guiTex, m_divergenceTex, m_obstaclesTex;
         RenderTexture[] m_velocityTex, m_densityTex, m_pressureTex, m_temperatureTex;
-
-        float m_impulseTemperature = 10.0f;
-        float m_impulseDensity = 1.0f;
-        float m_temperatureDissipation = 0.99f;
-        float m_velocityDissipation = 0.99f;
-        float m_densityDissipation = 0.9999f;
-        float m_ambientTemperature = 0.0f;
-        float m_smokeBuoyancy = 1.0f;
-        float m_smokeWeight = 0.05f;
 
         float m_cellSize = 1.0f;
         float m_gradientScale = 1.0f;
@@ -77,6 +79,11 @@ namespace FluidSim2DProject
             m_obstaclesTex.filterMode = FilterMode.Point;
             m_obstaclesTex.wrapMode = TextureWrapMode.Clamp;
             m_obstaclesTex.Create();
+
+            // 초기 열변색 물감 주입
+            Vector2 initialPos = new Vector2(0.5f, 0.2f); // 비커 하단
+            ApplyImpulse(m_temperatureTex[0], m_temperatureTex[1], initialPos, 0.05f, m_impulseTemperature);
+            ApplyImpulse(m_densityTex[0], m_densityTex[1], initialPos, 0.05f, m_impulseDensity);
         }
 
         void OnGUI()
@@ -169,10 +176,26 @@ namespace FluidSim2DProject
         void AddObstacles()
         {
             m_obstaclesMat.SetVector("_InverseSize", m_inverseSize);
-            m_obstaclesMat.SetVector("_Point", m_obstaclePos);
-            m_obstaclesMat.SetFloat("_Radius", m_obstacleRadius);
+            
+            // 비커 모양 그리기
+            float leftWall = 0.5f - m_beakerWidth * 0.5f;
+            float rightWall = 0.5f + m_beakerWidth * 0.5f;
+            float bottomWall = 0.1f;
+            float topWall = bottomWall + m_beakerHeight;
 
+            // 왼쪽 벽
+            m_obstaclesMat.SetVector("_Point", new Vector2(leftWall, 0.5f));
+            m_obstaclesMat.SetFloat("_Radius", m_beakerWallThickness);
             Graphics.Blit(null, m_obstaclesTex, m_obstaclesMat);
+
+            // 오른쪽 벽
+            m_obstaclesMat.SetVector("_Point", new Vector2(rightWall, 0.5f));
+            Graphics.Blit(m_obstaclesTex, m_obstaclesTex, m_obstaclesMat);
+
+            // 바닥
+            m_obstaclesMat.SetVector("_Point", new Vector2(0.5f, bottomWall));
+            m_obstaclesMat.SetFloat("_Radius", m_beakerWidth * 0.5f);
+            Graphics.Blit(m_obstaclesTex, m_obstaclesTex, m_obstaclesMat);
         }
 
         void ClearSurface(RenderTexture surface)
@@ -197,6 +220,7 @@ namespace FluidSim2DProject
             //Set the density field and obstacle color.
             m_guiMat.SetColor("_FluidColor", m_fluidColor);
             m_guiMat.SetColor("_ObstacleColor", m_obstacleColor);
+            m_guiMat.SetTexture("_Temperature", m_temperatureTex[0]);
 
             int READ = 0;
             int WRITE = 1;

@@ -21,6 +21,7 @@ Shader "FluidSim/GUI"
 			
 			sampler2D _MainTex;
 			sampler2D _Obstacles;
+			sampler2D _Temperature;
 			float3 _FluidColor, _ObstacleColor;
 		
 			struct v2f 
@@ -39,10 +40,16 @@ Shader "FluidSim/GUI"
 			
 			float4 frag(v2f IN) : COLOR
 			{
-			 	float3 col = _FluidColor * tex2D(_MainTex, IN.uv).x;
-			 	
+			 	float density = tex2D(_MainTex, IN.uv).x;
+			 	float temperature = tex2D(_Temperature, IN.uv).x;
 			 	float obs = tex2D(_Obstacles, IN.uv).x;
 			 	
+			 	// 온도에 따른 색상 변화 (파란색 -> 보라색)
+			 	float3 coldColor = float3(0, 0, 1); // 파란색
+			 	float3 hotColor = float3(0.5, 0, 0.5); // 보라색
+			 	float3 fluidColor = lerp(coldColor, hotColor, saturate(temperature * 0.1));
+			 	
+			 	float3 col = fluidColor * density;
 			 	float3 result = lerp(col, _ObstacleColor, obs);
 			 	
 				return float4(result,1);
